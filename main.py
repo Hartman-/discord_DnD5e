@@ -1,10 +1,12 @@
-# bot.py
+# main.py
 import os
 import random
 import re
 
 import discord
 from discord.ext import commands
+
+import requests
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -54,6 +56,57 @@ async def roll_dice(ctx, dice_and_mod: str):
 
     else:
         await ctx.send('Invalid input.')
+
+
+# thanks stack overflow
+def find_match(json_obj, name):
+    """
+    Given a JSON object and a name
+    return the matching index value, assuming no duplicates
+    """
+    return [obj for obj in json_obj if obj['name'].lower() == name][0]['index']
+
+
+@bot.command(name="spell")
+async def search_spell(ctx, *args):
+    api_baseUrl = 'https://www.dnd5eapi.co/api/'
+
+    arg = ' '.join(args)
+    search = arg.lower()
+
+    # api request for all spells to iterate and search
+    r_allSpells = requests.get(api_baseUrl+'spells')
+
+    if r_allSpells:
+        allSpells_json = r_allSpells.json()
+        spells = allSpells_json['results']
+
+        # get api index
+        spellIndex = find_match(spells, search)
+
+        # as long as we get a non-None return value, we gud
+        if spellIndex:
+            spellUrl = api_baseUrl+'spells/'+spellIndex
+            r_searchSpell = requests.get(spellUrl)
+
+            spell_levels = ['cantrip', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+            spell = r_searchSpell.json()
+
+            # simple message formatting with discord markdown
+            msg = "**{}** | `{} {}{}`\nCasting Time: {}\nRange: {}\nComponents: {} {}\nDuration: {}{}\n```{}```".format(
+                spell['name'],
+                spell['school']['name'],
+                spell_levels[spell['level']],
+                ', Ritual' if spell['ritual'] else '',
+                spell['casting_time'],
+                spell['range'],
+                ', '.join(spell['components']),
+                '('+spell['material']+')' if 'material' in spell else '',
+                'Concentration, ' if spell['concentration'] else '',
+                spell['duration'],
+                ''.join(spell['desc']))
+
+            await ctx.send(msg)
 
 
 bot.run(TOKEN)
