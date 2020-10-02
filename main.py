@@ -1,8 +1,10 @@
 # main.py
 import difflib
+import logging
 import os
 import random
 import re
+import time
 
 import discord
 from discord.ext import commands
@@ -16,13 +18,49 @@ TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 bot = commands.Bot(command_prefix="!")
 
 
+# Make necessary directories for logs
+def make_dir(file_path):
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    
+    return file_path
+
+t = time.time()
+timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime(t))
+# currently using desktop, need better directory
+filename = make_dir("c:/Users/IanHartman/Desktop/{}/output.log".format(timestamp))
+
+# Create logger
+logger = logging.getLogger('root')
+logger.setLevel(logging.DEBUG)
+
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+
+# create a file handler and set level to debug
+fh = logging.FileHandler(filename)
+fh.setLevel(logging.DEBUG)
+
+# create formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+fh.setFormatter(formatter)
+logger.addHandler(ch)
+logger.addHandler(fh)
+
+
+# Bot logged in and ready to go
 @bot.event
 async def on_ready():
-    print(f'We have logged in as {bot.user.name}')
+    # print(f'We have logged in as {bot.user.name}')
+    logger.info(f'Successful login as {bot.user.name}.')
 
 
 @bot.command(name="roll")
 async def roll_dice(ctx, dice_and_mod: str):
+    logger.info(f'ID: {ctx.message.id} | Command: {ctx.message.content} | User: {ctx.message.author} | Channel: {ctx.message.channel}')
 
     hasMod = False
     isValid = False
@@ -97,28 +135,35 @@ def check_name(search, name):
 
 
 # wrapper for requests that need the same basic exception handling
-def get_request(url):
+def get_request(url, ctx):
     """
     Handle connection / timeout / HTTP errors together
     Exit and print message if there is a problem
     """
     try:
         # api request
+        logger.debug(f'ID: {ctx.message.id} | Attempting GET request > {url} ...')
         response = requests.get(url)
     
     except requests.exceptions.RequestException as e:
-        print("Error when trying to connect to the DnD5e API. Please try again shortly.")
-        print(e) #print error to code terminal for debugging
+        # print("Error when trying to connect to the DnD5e API. Please try again shortly.")
+        # print(e) #print error to code terminal for debugging
+        logger.error(f"ID: {ctx.message.id} | Error when trying to connect to the DnD5e API. Please try again shortly.")
+        logger.error(e)
         return None
 
+    logger.debug(f'ID: {ctx.message.id} | GET request successful > {url}.')
+    logger.debug(f'ID: {ctx.message.id} | Response status code {response.status_code}')
     return response
 
 
 @bot.command(name="spell")
 async def search_spell(ctx, *args):
+    logger.info(f'ID: {ctx.message.id} | Command: {ctx.message.content} | User: {ctx.message.author} | Channel: {ctx.message.channel}')
+
     api_baseUrl = 'https://www.dnd5eapi.co/api/'
-    r_allSpells = get_request(api_baseUrl+'spells')
-    
+    r_allSpells = get_request(api_baseUrl+'spells', ctx)
+
     # Continue if not None
     if r_allSpells:
         allSpells_json = r_allSpells.json()
@@ -146,7 +191,7 @@ async def search_spell(ctx, *args):
         # as long as we get a non-None return value, we gud
         if spellIndex:
             spellUrl = api_baseUrl+'spells/'+spellIndex
-            r_searchSpell = get_request(spellUrl)
+            r_searchSpell = get_request(spellUrl, ctx)
 
             if r_searchSpell:
                 spell_levels = ['cantrip',
@@ -195,6 +240,5 @@ async def search_spell(ctx, *args):
     else:
         await ctx.send('Error when trying to connect to the DnD5e API. Please try again shortly.')
         return
-
 
 bot.run(TOKEN)
