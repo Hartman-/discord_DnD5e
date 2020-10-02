@@ -24,20 +24,39 @@ async def on_ready():
 @bot.command(name="roll")
 async def roll_dice(ctx, dice_and_mod: str):
 
+    hasMod = False
+    isValid = False
+
     # set the pattern for the dice roll
     # FIX: separate case or handling for no modifier present (ex. simple 2d6 rolls)
-    regex = r'([0-9]+)([a-z]+)([0-9]+)(\+)([0-9]+)'
-    pattern = re.compile(regex)
-    isValid = pattern.match(dice_and_mod)
+    regex_noMod = r'([0-9]+)([a-z]+)([0-9]+)'
+    regex_withMod = r'([0-9]+)([a-z]+)([0-9]+)(\+)([0-9]+)'
+    
+    pattern_withMod = re.compile(regex_withMod)
+    pattern_noMod = re.compile(regex_noMod)
+    match = pattern_withMod.match(dice_and_mod)
+    
+    if match:
+        hasMod = True
+        isValid = True
+    else:
+        match = pattern_noMod.match(dice_and_mod)
+        hasMod = False
+        if match:
+            isValid = True
+        else:
+            isValid = False
 
-    if (isValid):
-        dice_split = isValid.groups()
+    if isValid:
+        dice_split = match.groups()
         
         # get relevant information from the split
         # we don't care about the 'd' and '+' strings past pattern matching
         num_dice = int(dice_split[0])
         num_sides = int(dice_split[2])
-        mod = int(dice_split[4])
+
+        if hasMod:
+            mod = int(dice_split[4])
 
         # get base roll value
         roll_base = [
@@ -47,7 +66,7 @@ async def roll_dice(ctx, dice_and_mod: str):
 
         # sum rolls
         # add modifier
-        roll_sum = sum(roll_base) + mod
+        roll_sum = sum(roll_base) + mod if hasMod else sum(roll_base)
 
         # convert lists to strings
         roll_base_str = ','.join(str(x) for x in roll_base)
@@ -61,7 +80,7 @@ async def roll_dice(ctx, dice_and_mod: str):
         await ctx.send(msg_roll)
 
     else:
-        await ctx.send('Invalid input.')
+        await ctx.send('Invalid input *!roll {}*. Valid examples:\n{}\n{}'.format(dice_and_mod, '!roll 2d6', '!roll 2d6+4'))
 
 
 # Given two strings, do a simple diff check 
