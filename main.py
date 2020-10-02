@@ -64,15 +64,6 @@ async def roll_dice(ctx, dice_and_mod: str):
         await ctx.send('Invalid input.')
 
 
-# thanks stack overflow
-# def find_match(json_obj, name):
-#     """
-#     Given a JSON object and a name
-#     return the matching index value, assuming no duplicates
-#     """
-#     return [obj for obj in json_obj if obj['name'].lower() == name][0]['index']
-
-
 # Given two strings, do a simple diff check 
 # return strings within given error margin
 def check_name(search, name):
