@@ -6,6 +6,8 @@ import random
 import re
 import time
 
+from pprint import pprint
+
 import discord
 from discord.ext import commands
 
@@ -240,5 +242,60 @@ async def search_spell(ctx, *args):
     else:
         await ctx.send('Error when trying to connect to the DnD5e API. Please try again shortly.')
         return
+
+
+# spell list for a class
+@bot.command(name="spellcasting")
+async def class_spells(ctx, className, level=99):
+    logger.info(f'ID: {ctx.message.id} | Command: {ctx.message.content} | User: {ctx.message.author} | Channel: {ctx.message.channel}')
+
+    api_class = 'https://www.dnd5eapi.co/api/classes/'
+    response_classSpells = get_request(api_class+f'{className.lower()}/spells', ctx)
+
+    if response_classSpells:
+        allSpells = response_classSpells.json()['results']
+        numSpells = response_classSpells.json()['count']
+
+        api_spellcasting = 'https://www.dnd5eapi.co/api/spellcasting/'
+        response_spellcasting = get_request(api_spellcasting+f'{className.lower()}', ctx)
+
+        spellcasting_ability = None
+        spellcasting_info = None
+        if response_spellcasting:
+            spellcastingJson = response_spellcasting.json()
+            spellcasting_ability = spellcastingJson['spellcasting_ability']['name']
+            spellcasting_info = spellcastingJson['info']
+            pprint(spellcasting_info)
+
+
+        # Initialize spell lists to append names into
+        # sort spells into levels based upon their alphabetical listing (api returns sorted by level and a-z)
+        spellLists = [[],[],[],[],[],[],[],[],[],[]]
+        prevLetter = 'a'
+        curLevel = 0
+
+        for spell in allSpells:
+            name = spell['name']
+            if name[0].lower() >= prevLetter:
+                spellLists[curLevel].append(name)
+                prevLetter = name[0].lower()
+
+            else:
+                curLevel += 1
+                prevLetter = 'a'
+
+        await ctx.send(f'{numSpells} {className.title()} Spells Found.\n Sending full list as a DM to avoid clutter, thanks for understanding!')
+        
+        # Pick a random spell from the spell list and return the entire spell list to the user's DM
+        randLevel = random.choice(spellLists)
+        randSpell = random.choice(randLevel)
+        msgClass = f"**{className.title()}**\nSpellcasting Ability: {spellcasting_ability}\n**Spells:**\nTo learn more about a specific spell, use the command *!spell*.\nex. `!spell {randSpell}`\n\n"    
+        # msgDm = f"**Spells:**\nTo learn more about a specific spell, use the command *!spell*.\nex. `!spell {randSpell}`\n\n"
+        await ctx.message.author.send(msgClass)
+
+        for i, level in enumerate(spellLists):
+            msgDm = '**Level {}:** {}\n'.format(i, ' / '.join(level))
+            await ctx.message.author.send(msgDm)
+
 
 bot.run(TOKEN)
