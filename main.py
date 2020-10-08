@@ -1,6 +1,7 @@
 # main.py
 import difflib
 import logging
+import json
 import os
 import random
 import re
@@ -20,6 +21,7 @@ TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 bot = commands.Bot(command_prefix="!")
 
 
+
 # Make necessary directories for logs
 def make_dir(file_path):
     directory = os.path.dirname(file_path)
@@ -27,6 +29,7 @@ def make_dir(file_path):
         os.makedirs(directory)
     
     return file_path
+
 
 t = time.time()
 timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime(t))
@@ -53,12 +56,17 @@ logger.addHandler(ch)
 logger.addHandler(fh)
 
 
+with open('data/spells_CoreRulebooks.json', 'r') as json_file:
+    logger.info(f'Loaded JSON file > {json_file.name}')
+    json_data = json.load(json_file)
+
+
 # Bot logged in and ready to go
 @bot.event
 async def on_ready():
     # print(f'We have logged in as {bot.user.name}')
     logger.info(f'Successful login as {bot.user.name}.')
-
+    
 
 @bot.command(name="roll")
 async def roll_dice(ctx, dice_and_mod: str):
@@ -286,16 +294,60 @@ async def class_spells(ctx, className, level=99):
 
         await ctx.send(f'{numSpells} {className.title()} Spells Found.\n Sending full list as a DM to avoid clutter, thanks for understanding!')
         
-        # Pick a random spell from the spell list and return the entire spell list to the user's DM
-        randLevel = random.choice(spellLists)
-        randSpell = random.choice(randLevel)
-        msgClass = f"**{className.title()}**\nSpellcasting Ability: {spellcasting_ability}\n**Spells:**\nTo learn more about a specific spell, use the command *!spell*.\nex. `!spell {randSpell}`\n\n"    
-        # msgDm = f"**Spells:**\nTo learn more about a specific spell, use the command *!spell*.\nex. `!spell {randSpell}`\n\n"
-        await ctx.message.author.send(msgClass)
-
-        for i, level in enumerate(spellLists):
-            msgDm = '**Level {}:** {}\n'.format(i, ' / '.join(level))
+        if level >=0 and level < 10:
+            # Pick a random spell from the given level spell list and return the level spell list to the user's DM
+            randLevel = spellLists[level]
+            randSpell = random.choice(randLevel)
+            
+            msgClass = f"**{className.title()}**\nSpellcasting Ability: {spellcasting_ability}\n**Spells:**\nTo learn more about a specific spell, use the command *!spell*.\nex. `!spell {randSpell}`\n\n"    
+            await ctx.message.author.send(msgClass)
+            
+            msgDm = '**Level {}:** {}\n'.format(level, ' / '.join(spellLists[level]))
             await ctx.message.author.send(msgDm)
+        
+        else:
+            # Pick a random spell from the spell list and return the entire spell list to the user's DM
+            randLevel = random.choice(spellLists)
+            randSpell = random.choice(randLevel)
 
+            msgClass = f"**{className.title()}**\nSpellcasting Ability: {spellcasting_ability}\n**Spells:**\nTo learn more about a specific spell, use the command *!spell*.\nex. `!spell {randSpell}`\n\n"    
+            await ctx.message.author.send(msgClass)
+
+            for i, level in enumerate(spellLists):
+                msgDm = '**Level {}:** {}\n'.format(i, ' / '.join(level))
+                await ctx.message.author.send(msgDm)
+
+
+# Get information about the various skills
+@bot.command(name="skills")
+async def all_skills(ctx):
+    logger.info(f'ID: {ctx.message.id} | Command: {ctx.message.content} | User: {ctx.message.author} | Channel: {ctx.message.channel}')
+
+    api_skills = 'https://www.dnd5eapi.co/api/skills/'
+    response_skillList = get_request(api_skills, ctx)
+
+    if response_skillList:
+        skillListJson = response_skillList.json()['results']
+
+        msgSkills = "**Skills:**\n"
+        for skill in skillListJson:
+            msgSkills += f"{skill['name']}\n"
+
+        await ctx.send(msgSkills)
+
+
+# Get information about the various skills
+@bot.command(name="skill")
+async def get_skill(ctx, skill):
+    logger.info(f'ID: {ctx.message.id} | Command: {ctx.message.content} | User: {ctx.message.author} | Channel: {ctx.message.channel}')
+
+    api_skills = 'https://www.dnd5eapi.co/api/skills/'
+    resonse_indvSkill = get_request(api_skills+f'{skill.lower()}', ctx)
+
+    if resonse_indvSkill:
+        skillsJson = resonse_indvSkill.json()
+
+        msgSkill = f"**{skillsJson['name']}** [{skillsJson['ability_score']['name']}]\n{' '.join(skillsJson['desc'])}"
+        await ctx.send(msgSkill)
 
 bot.run(TOKEN)

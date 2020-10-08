@@ -6,6 +6,8 @@ Playing around with Discord Bots and API calls.
 - *!roll* : Simple Dice Roller 
 - *!spell* : Spell Lookup
 - *!spellcasting* : Class Spell Lists
+- *!skills* : List Skills
+- *!skill* : Get more information about a skill
 
 **All commands bound to the '!' character*
 

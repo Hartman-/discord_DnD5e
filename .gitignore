@@ -1,6 +1,9 @@
 # Specific files that I used to test code snippets
 testing*.py
 
+data/
+data/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
